@@ -1,0 +1,210 @@
+<html>
+<head>
+
+</head>
+<body onload="setup()" height="100%" scroll="no" style="overflow: hidden">
+<p id="score" style="font-size:50px; margin-left: auto; margin-right: auto; width: 1000px; text-align: center; height:30px">0</p>
+
+<canvas id="canvas" width="900px" height="1200px" style="touch-action: manipulation; border:solid black 1px; margin-left: auto; margin-right: auto; width: 900px; display:block"></canvas>
+<p id="debug"></p>
+
+<canvas id="buffer" width="900px" height="1200px" display="none"></canvas>
+
+</body>
+<script>
+
+
+
+
+class graphics {
+    
+    constructor(canvas, buffer, images){
+        
+        this.canvas = document.getElementById(canvas)
+        this.ctx = this.canvas.getContext("2d")
+        this.buffer = document.getElementById(buffer)
+        this.buf = this.buffer.getContext("2d")
+        this.images=images
+        this.camera=[0,0,0] //x y zoom
+        window.console.log(Object.keys(images))
+        
+    }
+    
+    swapbuffer(){
+        this.ctx.clearRect(0, 0, this.buffer.width, this.buffer.height);
+        this.ctx.drawImage(this.buffer, 0, 0)
+        this.buf.clearRect(0, 0, this.buffer.width, this.buffer.height);
+        
+    }
+    
+    drawsprite(image, x, y, rot, scale){
+		
+        let nx = (x-this.camera[0]+this.canvas.width/(1.5**this.camera[2])/2)*(1.5**this.camera[2])
+        let ny = (y-this.camera[1]+this.canvas.height/(1.5**this.camera[2])/2)*(1.5**this.camera[2])
+		this.buf.translate(nx, ny)
+		this.buf.rotate(rot)
+        this.buf.drawImage(images[image], -images[image].width*scale/2*(1.5**this.camera[2]), -images[image].height*scale/2*(1.5**this.camera[2]), images[image].width*scale*(1.5**this.camera[2]), images[image].height*scale*(1.5**this.camera[2]))
+		this.buf.rotate(-rot)
+		this.buf.translate(-nx, -ny)
+		
+    }
+    drawstatus(image, x, y, scale){
+        this.buf.drawImage(images[image], x, y, images[image].width*scale, images[image].height*scale)
+    
+    
+    }
+}
+
+async function touchEvent(event){
+    event.preventDefault()
+    
+    for(let i=0; i<event.changedTouches.length; i++){
+        let x =event.changedTouches[i].pageX-450-(window.innerWidth-900)/2
+        let y =event.changedTouches[i].pageY-600-80
+        let delkiwis=[]
+        let combo=0
+        for(let j=0; j<kiwis.length;j++){
+            if(kiwis[j][6]=="kiwi.png"){
+                window.console.log(dist(x, y, kiwis[j][0],kiwis[j][1]))
+                if(dist(x, y, kiwis[j][0],kiwis[j][1])<100){
+                    delkiwis.splice(0,0,j)
+                    kiwis.push([kiwis[j][0], kiwis[j][1], kiwis[j][2], kiwis[j][3]-Math.sin(kiwis[j][2])*(50+Math.abs(kiwis[j][5])*20), kiwis[j][4]+Math.cos(kiwis[j][2])*(50+Math.abs(kiwis[j][5])*20), kiwis[j][5], "kiwi1.png"])
+                    kiwis.push([kiwis[j][0], kiwis[j][1], kiwis[j][2], kiwis[j][3]+Math.sin(kiwis[j][2])*(50+Math.abs(kiwis[j][5])*20), kiwis[j][4]-Math.cos(kiwis[j][2])*(50+Math.abs(kiwis[j][5])*20), kiwis[j][5], "kiwi2.png"])
+                    combo+=1
+                }
+            }
+            
+        }
+        for(let j=0; j<delkiwis.length;j++){
+            kiwis.splice(delkiwis[j], 1)
+        }
+        if(combo>0){
+            combo*=combo
+            effects.push([x+450,y+600,2000,"+"+combo])
+            score.innerHTML=parseInt(combo)+parseInt(score.innerHTML)
+        }
+    }
+    
+
+}
+
+
+function dist(x1,y1,x2,y2){
+    return(Math.sqrt(((x2-x1)**2)+((y2-y1)**2)))
+}
+
+
+
+
+
+
+async function setup(){
+
+    ctx = document.getElementById("buffer").getContext("2d");
+    ctx.font = "50px Arial";
+    ctx.fillStyle = "red";
+    document.getElementById("canvas").style.marginLeft=(window.innerWidth-900)/2
+    window.console.log(document.getElementById("canvas").style.marginLeft)
+    kiwis=[] 
+    effects=[]
+    score=document.getElementById("score")
+    images={}
+    debug=document.getElementById("debug")
+    //let response = await fetch("filelist");
+    //let files = await response.json();
+    let files = ["kiwi.png", "kiwi1.png", "kiwi2.png"]
+    files.forEach(file=>{
+        let image=new Image()
+        image.src="assets/"+file
+        images[file]=image
+    }) 
+    
+    graph = new graphics("canvas", "buffer", images)
+    document.getElementById("canvas").addEventListener("touchstart", touchEvent)
+    fps=40
+    grav=200
+    time=new Date()
+    lframe=time.getTime()
+    waiting=0
+    setInterval(gameloop, 1000/fps)
+}
+
+
+async function gameloop(){
+    time=new Date()
+    framerate=(time.getTime()-lframe)
+    lframe=time.getTime()
+    let delkiwis=[]
+    for(let i=0; i<kiwis.length; i++){
+        kiwis[i][0]+=kiwis[i][3]/1000*framerate
+        kiwis[i][1]+=kiwis[i][4]/1000*framerate
+        kiwis[i][2]+=kiwis[i][5]/1000*framerate
+        kiwis[i][4]+=grav/1000*framerate
+        if(kiwis[i][1]>1100){
+            delkiwis.splice(0,0,i)
+            window.console.log("killed kiwi")
+            
+        }
+        
+        
+    }
+
+    for(let i=0; i<delkiwis.length; i++){
+        kiwis.splice(delkiwis[i], 1)
+    }
+    if(waiting>1000){
+        if((70/(score.innerHTML/10+1))<(Math.random()*100)){
+            spawnKiwi()
+            window.console.log("spawned kiwi")
+        }
+        waiting-=1000
+    }else{
+        waiting+=framerate
+    }
+    for(let i=0; i<kiwis.length; i++){
+    let kiwi = kiwis[i]
+        graph.drawsprite(kiwi[6], kiwi[0], kiwi[1], kiwi[2], 0.7)
+        
+    }
+    for(let i=effects.length-1; i>-1; i--){
+        let effect = effects[i]
+        ctx.fillText(effect[3], effect[0], effect[1])
+        if(effect[2]<0){
+            effects.splice(i, 1)
+        }else{
+            effect[2]-=framerate
+        }
+    }
+    
+    
+    graph.swapbuffer()
+    
+}
+
+async function spawnKiwi(){
+    
+    let kiwi=[0,0,0,0,0,0,"kiwi.png"] //x y rot vx vy vrot text
+    kiwi[1]=1000
+    kiwi[0]=Math.random()*1080-540
+    let point=[Math.random()*200-150, Math.random()*600-400]
+    let d=[point[0]-kiwi[0], -point[1]+kiwi[1]]
+    window.console.log(d)
+    kiwi[4]=-Math.sqrt(d[1]*2*grav)
+    kiwi[3]=-d[0]/kiwi[4]*grav
+    kiwi[5]=12*Math.random()-6
+    window.console.log(kiwi)
+    kiwis.push(kiwi)
+    
+}
+
+
+
+
+
+
+
+</script>
+
+
+
+</html>

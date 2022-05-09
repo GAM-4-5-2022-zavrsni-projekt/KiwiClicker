@@ -1,0 +1,1 @@
+cmd /c "npm install & node server.js"
